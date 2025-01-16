@@ -14,7 +14,7 @@ def get_named_parameter(event, name):
 
 def get_booking_details(booking_id):
     """
-    Retrieve details of a restaurant booking
+    Retrieve details of a steakhouse booking
 
     Args:
         booking_id (string): The ID of the booking to retrieve
@@ -31,7 +31,7 @@ def get_booking_details(booking_id):
 
 def create_booking(date, name, time, num_guests, desired_food=None):
     """
-    Create a new restaurant booking
+    Create a new steakhouse booking
 
     Args:
         date (string): The date of the booking
@@ -63,7 +63,7 @@ def create_booking(date, name, time, num_guests, desired_food=None):
 
 def delete_booking(booking_id):
     """
-    Delete an existing restaurant booking
+    Delete an existing steakhouse booking
 
     Args:
         booking_id (str): The ID of the booking to delete
