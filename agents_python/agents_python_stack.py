@@ -430,6 +430,9 @@ class AgentsPythonStack(Stack):
             self, "MyCfnAgentAlias",
             agent_alias_name=agent_alias_name,
             agent_id=cfn_agent.attr_agent_id)
+    
+        self.bedrock_agent_id = cfn_agent.attr_agent_id
+        self.bedrock_agent_alias_id = cfn_agent_alias.attr_agent_alias_id
 
         lambda_.CfnPermission(
             self,
@@ -452,3 +455,5 @@ class AgentsPythonStack(Stack):
                   value=knowledge_base.attr_knowledge_base_id)
         CfnOutput(scope=self, id='Agent_name', value=cfn_agent.agent_name)
         CfnOutput(scope=self, id='Agent_id', value=cfn_agent.attr_agent_id)
+        CfnOutput(scope=self, id='Agent_alias_id', value=cfn_agent_alias.attr_agent_alias_id)
+

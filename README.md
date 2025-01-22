@@ -1,7 +1,7 @@
 # Welcome to your Steakhouse Agent Python CDK project!
 
 <br>
-  <img src="https://github.com/chyke007/agents-python/blob/main/architecture/architecture.png" alt="Architecture" width="700"/>
+  <img src="https://github.com/chyke007/agents-python/blob/main/architecture/architecture_with_streamlit.png" alt="Architecture" width="700"/>
 <br>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
