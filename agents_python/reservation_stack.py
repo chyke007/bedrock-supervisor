@@ -23,7 +23,7 @@ from constructs import Construct
 from lambdas.code import Lambdas
 
 
-class AgentsPythonStack(Stack):
+class ReservationStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
