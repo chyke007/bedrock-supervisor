@@ -1,59 +1,33 @@
 import json
 import uuid
 import boto3
+from  helper import get_named_parameter, get_booking_details
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('steakhouse_bookings')
 
-
-def get_named_parameter(event, name):
+def create_shortlet_booking(person_name, date, number_days, shortlet_type, num_guests):
     """
-    Get a parameter from the lambda event
-    """
-    return next((item['value'] for item in event.get('parameters', []) if item['name'] == name), None)
-
-def get_booking_details(booking_id):
-    """
-    Retrieve details of a steakhouse booking
+    Create a new steakhouse shortlet booking
 
     Args:
-        booking_id (string): The ID of the booking to retrieve
-    """
-    try:
-        response = table.get_item(Key={'booking_id': booking_id})
-        if 'Item' in response:
-            return response['Item']
-        else:
-            return {'message': f'No booking found with ID {booking_id}'}
-    except Exception as e:
-        return {'error': str(e)}
-
-
-def create_booking(date, name, time, num_guests, desired_food=None):
-    """
-    Create a new steakhouse booking
-
-    Args:
-        date (string): The date of the booking
-        name (string): Name to idenfity your reservation
-        time (string): The time of the booking
-        desired_food (string, optional): The choosen menu/desserts/special. Defaults to None.
-        num_guests (integer): The number of guests for the booking
+        person_name (string): Name of customer making reservation
+        date (string): The check in date
+        number_days(integer): The number of days to stay
+        shortlet_type (string): The Shortlet apartment type
+        num_guests (integer): Number of guest
     """
     try:
         booking_id = str(uuid.uuid4())[:8]
         item = {
             'booking_id': booking_id,
+            'person_name': person_name,
             'date': date,
-            'name': name,
-            'time': time,
-            'num_guests': num_guests,
+            'number_days': number_days,
+            'shortlet_type': shortlet_type,
+            'num_guests': num_guests
         }
 
-        # Only add desired_food if it's not None or empty
-        if desired_food:
-            item['desired_food'] = desired_food
-        
         table.put_item(Item=item)
 
         return {'booking_id': booking_id}
@@ -61,9 +35,9 @@ def create_booking(date, name, time, num_guests, desired_food=None):
         return {'error': str(e)}
 
 
-def delete_booking(booking_id):
+def delete_shortlet_booking(booking_id):
     """
-    Delete an existing steakhouse booking
+    Delete an existing steakhouse shortlet booking
 
     Args:
         booking_id (str): The ID of the booking to delete
@@ -85,7 +59,7 @@ def lambda_handler(event, context):
     # name of the function that should be invoked
     function = event.get('function', '')
 
-    if function == 'get_booking_details':
+    if function == 'get_shortlet_booking_details':
         booking_id = get_named_parameter(event, "booking_id")
         if booking_id:
             response = str(get_booking_details(booking_id))
@@ -93,23 +67,23 @@ def lambda_handler(event, context):
         else:
             responseBody = {'TEXT': {'body': 'Missing booking_id parameter'}}
 
-    elif function == 'create_booking':
+    elif function == 'create_shortlet_booking':
+        person_name = get_named_parameter(event, "person_name")
         date = get_named_parameter(event, "date")
-        name = get_named_parameter(event, "name")
-        time = get_named_parameter(event, "time")
+        number_days = get_named_parameter(event, "number_days")
+        shortlet_type = get_named_parameter(event, "shortlet_type")
         num_guests = get_named_parameter(event, "num_guests")
-        desired_food = get_named_parameter(event, "desired_food") or ""
 
-        if date and name and time and num_guests:
-            response = str(create_booking(date, name, time, num_guests, desired_food))
+        if person_name and date and number_days and shortlet_type and num_guests:
+            response = str(create_shortlet_booking(person_name, date, number_days, shortlet_type, num_guests))
             responseBody = {'TEXT': {'body': json.dumps(response)}}
         else:
             responseBody = {'TEXT': {'body': 'Missing required parameters'}}
 
-    elif function == 'delete_booking':
+    elif function == 'delete_shortlet_booking':
         booking_id = get_named_parameter(event, "booking_id")
         if booking_id:
-            response = str(delete_booking(booking_id))
+            response = str(delete_shortlet_booking(booking_id))
             responseBody = {'TEXT': {'body': json.dumps(response)}}
         else:
             responseBody = {'TEXT': {'body': 'Missing booking_id parameter'}}
