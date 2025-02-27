@@ -44,7 +44,7 @@ st.markdown(
 st.markdown("<div class='main-header'>Welcome to Steakhouse Agent</div>", unsafe_allow_html=True)
 
 # Agent message
-st.write("I am an AI Agent that can help you make reservations, retrieve reservations, and cancel reservations. You can also ask me about menu details, special deals, desserts & drinks.")
+st.write("I am an AI Agent in charge of a Steakhouse Enterprise. Ask me any questions related to Restaurant, HR, Ticket and Shortlet and I would reply with appropriate response.")
 
 # Display a text box for input
 prompt = st.text_area("**How may I help you?**", value="", height=70, key="prompt")

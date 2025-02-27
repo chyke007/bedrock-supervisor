@@ -6,12 +6,12 @@ from  helper import get_named_parameter, get_booking_details
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('steakhouse_bookings')
 
-def create_shortlet_booking(person_name, date, number_days, shortlet_type, num_guests):
+def create_shortlet_booking(name, date, number_days, shortlet_type, num_guests):
     """
     Create a new steakhouse shortlet booking
 
     Args:
-        person_name (string): Name of customer making reservation
+        name (string): Name of customer making reservation
         date (string): The check in date
         number_days(integer): The number of days to stay
         shortlet_type (string): The Shortlet apartment type
@@ -21,7 +21,7 @@ def create_shortlet_booking(person_name, date, number_days, shortlet_type, num_g
         booking_id = str(uuid.uuid4())[:8]
         item = {
             'booking_id': booking_id,
-            'person_name': person_name,
+            'name': name,
             'date': date,
             'number_days': number_days,
             'shortlet_type': shortlet_type,
@@ -68,14 +68,14 @@ def lambda_handler(event, context):
             responseBody = {'TEXT': {'body': 'Missing booking_id parameter'}}
 
     elif function == 'create_shortlet_booking':
-        person_name = get_named_parameter(event, "person_name")
+        name = get_named_parameter(event, "name")
         date = get_named_parameter(event, "date")
         number_days = get_named_parameter(event, "number_days")
         shortlet_type = get_named_parameter(event, "shortlet_type")
         num_guests = get_named_parameter(event, "num_guests")
 
-        if person_name and date and number_days and shortlet_type and num_guests:
-            response = str(create_shortlet_booking(person_name, date, number_days, shortlet_type, num_guests))
+        if name and date and number_days and shortlet_type and num_guests:
+            response = str(create_shortlet_booking(name, date, number_days, shortlet_type, num_guests))
             responseBody = {'TEXT': {'body': json.dumps(response)}}
         else:
             responseBody = {'TEXT': {'body': 'Missing required parameters'}}

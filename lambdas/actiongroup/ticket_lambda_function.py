@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 import uuid
 import boto3
 from  helper import get_named_parameter, get_booking_details
@@ -67,7 +68,7 @@ def lambda_handler(event, context):
 
     elif function == 'create_ticket_booking':
         name = get_named_parameter(event, "name")
-        creation_date = get_named_parameter(event, "creation_date")
+        creation_date = datetime.today().strftime("%d/%m/%Y")
         incident_date = get_named_parameter(event, "incident_date")
         reason = get_named_parameter(event, "reason")
         

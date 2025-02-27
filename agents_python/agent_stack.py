@@ -738,18 +738,13 @@ class AgentStack(Stack):
                                 description="The name of customer creating a ticket",
                                 required=True
                             ),
-                            config['ticket_func_createbooking_creation_date']: bedrock.CfnAgent.ParameterDetailProperty(
-                                type="string",
-                                description="Todays date",
-                                required=False
-                            ),
                             config['ticket_func_createbooking_incident_date']: bedrock.CfnAgent.ParameterDetailProperty(
-                                type="integer",
+                                type="string",
                                 description="Date of incident",
                                 required=True
                             ),
                             config['ticket_func_createbooking_reason']: bedrock.CfnAgent.ParameterDetailProperty(
-                                type="integer",
+                                type="string",
                                 description="Reason for creating ticket",
                                 required=True
                             )}
@@ -788,46 +783,6 @@ class AgentStack(Stack):
             self, "SupervisorAgentAlias",
             agent_alias_name=supervisor_agent_alias_name,
             agent_id=cfn_supervisor_agent.attr_agent_id)
-
-        # Associate reservation agent with supervisor
-        # bedrock.CfnAgentCollaborator(self, "ReservationAgentCollaborator",
-        #     agent_id=cfn_supervisor_agent.attr_agent_id,
-        #     collaborator_agent_id=cfn_reservation_agent.attr_agent_id,
-        #     collaborator_agent_alias_id=cfn_reservation_agent_alias.attr_agent_alias_id,
-        #     relayConversationHistory= "TO_COLLABORATOR",
-        #     collaboratorName = reservation_agent_name,
-        #     collaborationInstruction = "Use this agent for steakhouse menu reservation"
-        # )
-
-        # Associate hr agent with supervisor
-        # bedrock.CfnAgentCollaborator(self, "HrAgentCollaborator",
-        #     agent_id=cfn_supervisor_agent.attr_agent_id,
-        #     collaborator_agent_id=cfn_hr_agent.attr_agent_id,
-        #     collaborator_agent_alias_id=cfn_hr_agent_alias.attr_agent_alias_id,
-        #     relayConversationHistory= "TO_COLLABORATOR",
-        #     collaboratorName = hr_agent_name,
-        #     collaborationInstruction = "Use this agent for steakhouse hr needs"
-        # )
-
-        # Associate shortlet agent with supervisor
-        # bedrock.CfnAgentCollaborator(self, "ShortletAgentCollaborator",
-        #     agent_id=cfn_supervisor_agent.attr_agent_id,
-        #     collaborator_agent_id=cfn_shortlet_agent.attr_agent_id,
-        #     collaborator_agent_alias_id=cfn_shortlet_agent_alias.attr_agent_alias_id,
-        #     relayConversationHistory= "TO_COLLABORATOR",
-        #     collaboratorName = shortlet_agent_name,
-        #     collaborationInstruction = "Use this agent for steakhouse shortlet needs"
-        # )
-
-        # Associate ticket agent with supervisor
-        # bedrock.CfnAgentCollaborator(self, "TicketAgentCollaborator",
-        #     agent_id=cfn_supervisor_agent.attr_agent_id,
-        #     collaborator_agent_id=cfn_ticket_agent.attr_agent_id,
-        #     collaborator_agent_alias_id=cfn_ticket_agent_alias.attr_agent_alias_id,
-        #     relayConversationHistory= "TO_COLLABORATOR",
-        #     collaboratorName = ticket_agent_name,
-        #     collaborationInstruction = "Use this agent for steakhouse ticketing needs"
-        # )
 
         self.bedrock_supervisor_agent_id = cfn_supervisor_agent.attr_agent_id
         self.bedrock_supervisor_agent_alias_id = cfn_supervisor_agent_alias.attr_agent_alias_id
