@@ -10,7 +10,6 @@ from aws_cdk import (
     RemovalPolicy,
     aws_lambda as lambda_,
     aws_s3_notifications as s3n,
-    aws_opensearchserverless as os_serverless,
     aws_iam as iam,
     CfnOutput,
     aws_bedrock as bedrock,
@@ -22,6 +21,29 @@ import json
 from constructs import Construct
 from lambdas.code import Lambdas
 
+def build_agent_collaborator_property(agent_alias_arn, instruction, name, relay_conversation=True):
+    """
+    Builds collaboration properties for an agent.
+    
+    Args:
+        agent_alias_arn: The agent alias arn
+        instruction: Instructions for the agent collaboration
+        name: Name of the collaborator
+        relay_conversation: Whether to relay conversations
+        
+    Returns:
+        Dictionary containing collaboration properties
+    """
+    agent_collaborator_property = bedrock.CfnAgent.AgentCollaboratorProperty(
+        agent_descriptor=bedrock.CfnAgent.AgentDescriptorProperty(
+            alias_arn=agent_alias_arn
+        ),
+        collaboration_instruction=instruction,
+        collaborator_name=name,
+        # the properties below are optional
+        relay_conversation_history="TO_COLLABORATOR" if relay_conversation else "DISABLED",
+    )
+    return agent_collaborator_property
 
 class AgentStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
@@ -55,10 +77,6 @@ class AgentStack(Stack):
         knowledge_base_description = config['knowledgeBaseDescription']
         s3_bucket_name = config['s3BucketName']+region+"-"+account_id
         agent_model_id = config['agentModelId']
-        agent_model_arn = bedrock.FoundationModel.from_foundation_model_id(
-            scope=self,
-            _id='AgentModel',
-            foundation_model_id=bedrock.FoundationModelIdentifier(agent_model_id)).model_arn
 
         # Bedrock embedding model Amazon Titan Text v2
         embedding_model_id = config['embeddingModelId']
@@ -347,29 +365,87 @@ class AgentStack(Stack):
         )
 
         agent_role.add_to_policy(iam.PolicyStatement(
-            sid='InvokeBedrockLambda',
-            effect=iam.Effect.ALLOW,
-            resources=[
-                agent_model_arn],
-            actions=['bedrock:InvokeModel', 'lambda:InvokeFunction']))
-        agent_role.add_to_policy(iam.PolicyStatement(
             sid='RetrieveKBStatement',
             effect=iam.Effect.ALLOW,
             resources=[
                 knowledge_base.attr_knowledge_base_arn],
             actions=['bedrock:Retrieve']))
+       
+        # Added support for cross-region inference
+        agent_role.add_to_policy(
+            iam.PolicyStatement(
+                sid='InvokeInferenceProfile',
+                effect=iam.Effect.ALLOW,
+                actions=["bedrock:InvokeModel*", "bedrock:CreateInferenceProfile"],
+                resources=[
+                    "arn:aws:bedrock:*::foundation-model/*",
+                    "arn:aws:bedrock:*:*:inference-profile/*",
+                    "arn:aws:bedrock:*:*:application-inference-profile/*",
+                ],
+            )
+        )
 
-        supervisor_agent_role.add_to_policy(iam.PolicyStatement(
-            sid='SupervisorInvokeBedrockLambda',
-            effect=iam.Effect.ALLOW,
-            resources=[
-                agent_model_arn],
-            actions=['bedrock:InvokeModel', 'lambda:InvokeFunction']))
+        agent_role.add_to_policy(
+            iam.PolicyStatement(
+                sid='ListInferenceProfile',
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "bedrock:GetInferenceProfile",
+                    "bedrock:ListInferenceProfiles",
+                    "bedrock:DeleteInferenceProfile",
+                    "bedrock:TagResource",
+                    "bedrock:UntagResource",
+                    "bedrock:ListTagsForResource",
+                ],
+                resources=[
+                    "arn:aws:bedrock:*:*:inference-profile/*",
+                    "arn:aws:bedrock:*:*:application-inference-profile/*",
+                ],
+            )
+        )
+
         supervisor_agent_role.add_to_policy(iam.PolicyStatement(
             sid='SupervisorAgentInvoke',
             effect=iam.Effect.ALLOW,
-            resources=["*"],
-            actions=['bedrock:*']))
+            resources=[
+                    "arn:aws:bedrock:*:*:agent/*",
+                    "arn:aws:bedrock:*:*:agent-alias/*",
+                ],
+            actions=["bedrock:GetAgentAlias",
+                    "bedrock:InvokeAgent"]))
+
+        # Added support for cross-region inference
+        supervisor_agent_role.add_to_policy(
+            iam.PolicyStatement(
+                sid='SupervisorInvokeInferenceProfile',
+                effect=iam.Effect.ALLOW,
+                actions=["bedrock:InvokeModel*", "bedrock:CreateInferenceProfile"],
+                resources=[
+                    "arn:aws:bedrock:*::foundation-model/*",
+                    "arn:aws:bedrock:*:*:inference-profile/*",
+                    "arn:aws:bedrock:*:*:application-inference-profile/*",
+                ],
+            )
+        )
+
+        supervisor_agent_role.add_to_policy(
+            iam.PolicyStatement(
+                sid='SupervisorListInferenceProfile',
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "bedrock:GetInferenceProfile",
+                    "bedrock:ListInferenceProfiles",
+                    "bedrock:DeleteInferenceProfile",
+                    "bedrock:TagResource",
+                    "bedrock:UntagResource",
+                    "bedrock:ListTagsForResource",
+                ],
+                resources=[
+                    "arn:aws:bedrock:*:*:inference-profile/*",
+                    "arn:aws:bedrock:*:*:application-inference-profile/*",
+                ],
+            )
+        )
 
         reservation_action_group_function = lambda_.Function(
             self, "BedrockReservationAgentActionGroupExecutor",
@@ -407,33 +483,25 @@ class AgentStack(Stack):
             timeout=Duration.seconds(300)
         )
 
-        reservation_action_group_function.add_to_role_policy(iam.PolicyStatement(
+        # Define the common policy statement
+        dynamodb_policy = iam.PolicyStatement(
             sid="UpdateDynamoDB",
             effect=iam.Effect.ALLOW,
-            resources=[
-                dynamodbable.table_arn],
-            actions=['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem']))
+            resources=[dynamodbable.table_arn],
+            actions=['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem']
+        )
 
-        hr_action_group_function.add_to_role_policy(iam.PolicyStatement(
-            sid="UpdateDynamoDB",
-            effect=iam.Effect.ALLOW,
-            resources=[
-                dynamodbable.table_arn],
-            actions=['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem']))
+        # List of functions to attach the policy to
+        functions = [
+            reservation_action_group_function,
+            hr_action_group_function,
+            shortlet_action_group_function,
+            ticket_action_group_function,
+        ]
 
-        shortlet_action_group_function.add_to_role_policy(iam.PolicyStatement(
-            sid="UpdateDynamoDB",
-            effect=iam.Effect.ALLOW,
-            resources=[
-                dynamodbable.table_arn],
-            actions=['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem']))
-
-        ticket_action_group_function.add_to_role_policy(iam.PolicyStatement(
-            sid="UpdateDynamoDB",
-            effect=iam.Effect.ALLOW,
-            resources=[
-                dynamodbable.table_arn],
-            actions=['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:DeleteItem']))
+        # Attach the policy to each function
+        for fn in functions:
+            fn.add_to_role_policy(dynamodb_policy)
 
         # Create the Reservation Agent
         cfn_reservation_agent = bedrock.CfnAgent(
@@ -769,6 +837,31 @@ class AgentStack(Stack):
             agent_alias_name=ticket_agent_alias_name,
             agent_id=cfn_ticket_agent.attr_agent_id)
 
+        # Create Collaborators
+        agent_collaborators = [
+            build_agent_collaborator_property(
+                cfn_reservation_agent_alias.attr_agent_alias_arn,
+                instruction=reservation_agent_instruction,
+                name ="ReservationAgent",
+            ),
+            build_agent_collaborator_property(
+                cfn_hr_agent_alias.attr_agent_alias_arn,
+                instruction=hr_agent_instruction,
+                name ="HrAgent",
+            ),
+            build_agent_collaborator_property(
+                cfn_shortlet_agent_alias.attr_agent_alias_arn,
+                instruction=shortlet_agent_instruction,
+                name ="ShortletAgent",
+            ),
+            build_agent_collaborator_property(
+                cfn_ticket_agent_alias.attr_agent_alias_arn,
+                instruction=ticket_agent_instruction,
+                name ="TicketAgent",
+            ),
+            
+        ]
+        
         # Create supervisor agent
         cfn_supervisor_agent = bedrock.CfnAgent(self, "SupervisorAgent",
                                                 agent_name=supervisor_agent_name,
@@ -778,15 +871,25 @@ class AgentStack(Stack):
                                                 foundation_model=agent_model_id,
                                                 instruction=supervisor_agent_instruction,
                                                 idle_session_ttl_in_seconds=1800,
+                                                agent_collaboration="SUPERVISOR",
+                                                agent_collaborators=agent_collaborators,
                                                 )
+      
         cfn_supervisor_agent_alias = bedrock.CfnAgentAlias(
             self, "SupervisorAgentAlias",
             agent_alias_name=supervisor_agent_alias_name,
             agent_id=cfn_supervisor_agent.attr_agent_id)
-
+        
         self.bedrock_supervisor_agent_id = cfn_supervisor_agent.attr_agent_id
         self.bedrock_supervisor_agent_alias_id = cfn_supervisor_agent_alias.attr_agent_alias_id
 
+        cfn_reservation_agent.node.add_dependency(agent_role)
+        cfn_hr_agent.node.add_dependency(agent_role)
+        cfn_shortlet_agent.node.add_dependency(agent_role)
+        cfn_ticket_agent.node.add_dependency(agent_role)
+
+        cfn_supervisor_agent.node.add_dependency(supervisor_agent_role)
+        
         lambda_.CfnPermission(
             self,
             "BedrockInvocationPermissionReservation",
